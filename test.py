@@ -64,13 +64,6 @@ def jobList():
     # Formata a saída como um objeto JSON
     json_output = json.dumps(lld_data, indent=4)
 
-    # Coletando última execução
-    for job in json.loads(json_output)['data']:
-        result = sessionList(job['{#JOBID}'])
-        job['{#JOBSTATE}'] = json.loads(result['data']['{#JOBSTATE}'])
-        job['{#FINISHDAT}'] = json.loads(result['data']['{#FINISHDAT}'])
-
-    print(json_output)
     return json_output
 
 def sessionList(jobId):
@@ -113,11 +106,13 @@ except:
 
 # Chamada das funções:
 if _COMMAND == 'jobList':
-    with open(_FILE, "w") as f:
-        f.write(jobList())
+    #with open(_FILE, "x") as f:
+    #    f.write(jobList())
+    print(jobList())
 elif _COMMAND == 'sessionList':
-    _FILE = _FILE+'_'+_PARAM01
-    with open(_FILE, "x") as f:
-        f.write(sessionList(_PARAM01))
+    #_FILE = _FILE+'_'+_PARAM01
+    #with open(_FILE, "x") as f:
+    #    f.write(sessionList(_PARAM01))
+    print(sessionList(_PARAM01))
 else:
     print('602')
