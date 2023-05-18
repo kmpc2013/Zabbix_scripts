@@ -27,6 +27,7 @@ import sys
 import datetime
 import inspect
 
+# Função para mapear textos em números
 def valueMap(jobState):
     nome_funcao_chamadora  = inspect.getframeinfo(inspect.currentframe().f_back).function
     if nome_funcao_chamadora == 'sessionList':
@@ -45,6 +46,7 @@ def valueMap(jobState):
         result = dict['Unknown']
     return result
 
+# Função para identificar o regex necessário dependendo da versão do Veeam instalada
 def veeamVersionRegex():
     veeamVersion = subprocess.check_output(['veeamconfig', '-v']).decode()
     veeamVersion = int(veeamVersion[1:2])
@@ -57,6 +59,7 @@ def veeamVersionRegex():
         exit()
     return regex
 
+# Função que coleta todos os jobs e transforma num JSON com a última execução
 def jobList():
     # Executa o comando e armazena o resultado na variável `output`
     output = subprocess.check_output(['veeamconfig', 'job', 'list']).decode()
@@ -92,6 +95,7 @@ def jobList():
 
     return json_output
 
+# Coleta a última execução de um JOB
 def sessionList(jobId):
     result = subprocess.run(['veeamconfig', 'session', 'list', '--jobId', jobId], capture_output=True, text=True)
     output = result.stdout.strip().split('\n')[1:-1]
