@@ -1,6 +1,6 @@
 
 """
-######################################################################
+#######################################################################
 # Empresa: Sercompe
 # Autor: Luis G. Fernandes
 # Email: luis.fernandes@sercompe.com.br
@@ -15,9 +15,6 @@
 # 603 -> Job nunca executado
 # 605 -> Erro na execução das funções
 ######################################################################
-# Execute:
-# python3 veeam.py jobList .
-######################################################################
 """
 
 import subprocess
@@ -27,7 +24,6 @@ import sys
 import datetime
 import inspect
 
-# Função para mapear textos em números
 def valueMap(jobState):
     nome_funcao_chamadora  = inspect.getframeinfo(inspect.currentframe().f_back).function
     if nome_funcao_chamadora == 'sessionList':
@@ -46,20 +42,6 @@ def valueMap(jobState):
         result = dict['Unknown']
     return result
 
-# Função para identificar o regex necessário dependendo da versão do Veeam instalada
-def veeamVersionRegex():
-    veeamVersion = subprocess.check_output(['veeamconfig', '-v']).decode()
-    veeamVersion = int(veeamVersion[1:2])
-    if veeamVersion == 6:
-        regex = r'(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+?'
-    elif veeamVersion == 5:
-        regex = r'(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+(\S.*)\s\s+?'
-    else:
-        print('604')
-        exit()
-    return regex
-
-# Função que coleta todos os jobs e transforma num JSON com a última execução
 def jobList():
     # Executa o comando e armazena o resultado na variável `output`
     output = subprocess.check_output(['veeamconfig', 'job', 'list']).decode()
@@ -72,6 +54,7 @@ def jobList():
         match = re.match(regex, line)
         jobId = match.group(2).strip()[1:-1]
         session = sessionList(jobId)
+        CreationTime = jobCreationTime(jobId)
         if match:
             id = jobId
             name = match.group(1).strip()
@@ -79,6 +62,7 @@ def jobList():
             repository = match.group(4).strip()
             jobstate = json.loads(session)['JOBSTATE']
             startDate = json.loads(session)['STARTDATE']
+            CreationTime = CreationTime
             
             jobs.append({
                 'JOBID': id, 
@@ -86,7 +70,8 @@ def jobList():
                 'JOBTYPE': type, 
                 'REPOSITORY': repository, 
                 'JOBSTATE': jobstate, 
-                'STARTDATE': startDate
+                'STARTDATE': startDate,
+                'CREATIONTIME': CreationTime
                 })
 
 
@@ -95,18 +80,15 @@ def jobList():
 
     return json_output
 
-# Coleta a última execução de um JOB
 def sessionList(jobId):
     result = subprocess.run(['veeamconfig', 'session', 'list', '--jobId', jobId], capture_output=True, text=True)
-    output = result.stdout.strip().split('\n')[1:-1]
-
-    regex = veeamVersionRegex()
-
+    regex = r'(\S.*\S)\s\s+(\S+)\s\s+(\{\S+)\s\s+(\S+)\s\s+(\S+\s\S+)'
+    
     try:
-        output = output[-1]
+        output = result.stdout.strip().split('\n')[-2]
         match = re.match(regex, output)
         jobState = match.group(4).strip()
-        startDate = round((datetime.datetime.now() - datetime.datetime.strptime(match.group(6).strip(), '%Y-%m-%d %H:%M')).total_seconds()/3600,2)
+        startDate = round((datetime.datetime.now() - datetime.datetime.strptime(match.group(5).strip(), '%Y-%m-%d %H:%M')).total_seconds()/3600,2)
     except:
         jobState = 'Never executed'
         startDate = '90001'
@@ -116,6 +98,13 @@ def sessionList(jobId):
     discovery['JOBSTATE'] = jobState
     discovery['STARTDATE'] = startDate
     return json.dumps(discovery,indent=4)
+
+def jobCreationTime(jobId):
+    result = subprocess.check_output(['veeamconfig', 'job', 'info', '--id', jobId]).decode()
+    regex = r"Creation time: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"
+    creationTime = re.findall(regex, result)
+    creationTime = int(datetime.datetime.strptime(creationTime[0], "%Y-%m-%d %H:%M:%S").timestamp())
+    return creationTime
 
 # Criando e testando as variáveis
 try:
@@ -127,11 +116,10 @@ except:
     exit()
 
 # Chamada das funções:
-try:
-    if _COMMAND == 'jobList':
-        with open(_FILE, "w") as f:
-            f.write(jobList())
-    else:
-        print('602')
-except:
-    print('604')
+if _COMMAND == 'jobList':
+    with open(_FILE, "w") as f:
+        f.write(jobList())
+    with open(_FILE, "r") as f:
+        print(f.read())
+else:
+    print('602')
